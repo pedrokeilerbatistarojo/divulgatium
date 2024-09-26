@@ -1,0 +1,70 @@
+CreateUser
+  username
+  email
+  phone
+  code
+  role_id
+  last_login
+  active (boolean)
+  company_id(Cuando el rol es empresa)
+  business_id(Cuando el rol es negocio)
+
+CreateCompany
+  name
+  email
+  phone
+  state_id
+  city_id
+  user_id
+
+CreateBusiness
+  name
+  email
+  phone
+  user_id
+  state_id
+  city_id
+  company_id
+  agent_id
+  commission_club
+  commission_commercial
+  commission_agent
+
+CreateTerminal
+  model
+  alias
+  company_id
+  business_id
+  status (Available | Unavailable)
+
+CreateBatch
+  id
+  start_date
+  end_date
+  business_id
+  process_amount (total de los detalles)
+  receive_amount (total de los detalles)
+  cash_amount
+  tx_assimilated_amount
+  tx_corp_amount
+  status (Pending | Payed)
+
+CreateBatchDetail
+  batch_id
+  transaction_id
+  receive_amount
+
+(En la trasaccion esta el monto procesado bruto, luego obtenemos las 
+comisiones del business asociado al batch)
+Se suman las comisiones del business y se calcula con respecto al monto 
+bruto, y luego se resta y da como resultado:
+el receive_amount)
+
+PaidBatch (Update Batch)
+  batch_id
+  amount_to_cash
+  amount_assimilated_tx
+  amount_corp_tx
+
+(Se actualizan los montos pagados y se marca el estado como Payed)
+

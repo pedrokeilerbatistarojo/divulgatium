@@ -1,0 +1,47 @@
+name: Deploy Divulgatium Backend
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches:
+      - deploy-dev-backend
+      - deploy-main-backend
+
+  pull_request:
+    branches:
+      - deploy-dev-backend
+      - deploy-main-backend
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      #- name: Temp step 1
+      #  run: pwd
+
+      - name: Copy script to server
+        uses: easingthemes/ssh-deploy@main
+        with:
+            SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+            ARGS: "-avz"
+            SOURCE: "./docs/deploy/deploy-divulgatium-api.sh"
+            REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+            REMOTE_USER: root
+            TARGET: /root/scripts/deploy-divulgatium-api.sh
+
+      - name: Deploy app
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            chmod +x /root/scripts/deploy-divulgatium-api.sh
+            /root/scripts/deploy-divulgatium-api.sh ${{ github.ref_name }}

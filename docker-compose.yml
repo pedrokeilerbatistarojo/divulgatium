@@ -1,0 +1,84 @@
+#Divulgatium Proyect
+
+version: '3.7'
+
+volumes:
+    logs:
+        driver: local
+
+services:
+    nginx:
+        build:
+            context: ./docker/nginx/
+            dockerfile: dockerfile
+        restart: unless-stopped
+        volumes:
+            - ./docker/nginx/.bashrc:/root/.bashrc
+            - ./docker/nginx/.bash_history:/root/.bash_history
+            - ./docker/nginx/www:/var/www/public
+            #- ./app-backend:/var/www
+        ports:
+            - 80:80
+        networks:
+            - divulgatium-net
+        depends_on:
+            - app-backend
+
+    db-server:
+        image: mysql:8.4.0
+        restart: unless-stopped
+        command:  ['--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci', '--sql_mode=STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION', --mysql-native-password=ON]
+        ports:
+            - 3306:3306
+        volumes:
+            - ./docker/mysql/.bashrc:/root/.bashrc
+            - ./docker/mysql/.bash_history:/root/.bash_history
+            - ./docker/mysql/data:/var/lib/mysql
+            - ./docker/mysql/sql:/docker-entrypoint-initdb.d
+        networks:
+            - divulgatium-net
+        env_file:
+            - default.env
+        healthcheck:
+            test: mysql -h localhost -u root -e 'SELECT version();'
+            start_period: 5s
+            interval: 15s
+            timeout: 5s
+            retries: 5
+
+    redis:
+        image: redis:7.2.5-alpine
+        #command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}"
+        restart: unless-stopped
+        # ports:
+            # - "6379:6379"
+        volumes:
+            - ./docker/redis/.bashrc:/root/.bashrc
+            - ./docker/redis/.bash_history:/root/.bash_history
+        networks:
+            - divulgatium-net
+
+    app-backend:
+        build:
+            context: ./docker/app-backend/
+            dockerfile: dockerfile
+        restart: unless-stopped
+        working_dir: /var/www
+        environment:
+            docker: "true"
+            REDIS_HOST: redis
+        volumes:
+            - ./docker/app-backend/.bashrc:/root/.bashrc
+            - ./docker/app-backend/.bash_history:/root/.bash_history
+            - ./app-backend:/var/www
+        networks:
+            - divulgatium-net
+        depends_on:
+            - redis
+            - db-server
+        ports:
+            - 9001:9001
+
+networks:
+    divulgatium-net:
+    

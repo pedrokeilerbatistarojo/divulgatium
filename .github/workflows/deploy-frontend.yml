@@ -1,0 +1,86 @@
+name: Deploy Divulgatium Frontend
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches:
+      - deploy-dev-frontend
+      - deploy-main-frontend
+
+  pull_request:
+    branches:
+      - deploy-dev-frontend
+      - deploy-main-frontend
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20.10.0
+
+      - name: Install dependencies
+        run: |
+          cd ./app-frontend
+          npm ci
+
+      - name: Modify .env file
+        run: |
+          cd ./app-frontend
+
+          BASE_URL=https://api.lionclub.mx/
+          CURRENT_BRANCH=${{ github.ref_name }}
+
+          if [ ! -z "$CURRENT_BRANCH" ] && [ "$1" != "deploy-main-frontend" ]; then
+            BASE_URL=https://apitest.lionclub.mx/
+          fi
+
+          echo "VITE_API_BASE_URL=$BASE_URL" >> .env
+          echo "VITE_API_BASE_URL=$BASE_URL" >> .env.prod
+
+      - name: Build Vue
+        run: |
+          cd ./app-frontend
+          npm run build
+
+      - name: Deploy to Server
+        uses: easingthemes/ssh-deploy@main
+        with:
+            SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+            ARGS: "-rlgoDzvc -i --delete"
+            SOURCE: "app-frontend/dist/spa/"
+            REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+            REMOTE_USER: root
+            TARGET: /opt/sync/${{ github.ref_name }}/
+            #EXCLUDE: "/dist/, /node_modules/"
+
+      - name: Sync Backend and frontend
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+
+            WWW_FOLDER=/var/www
+            SERVER_FOLDER=$WWW_FOLDER/divulgatium-frontend
+            CURRENT_BRANCH=${{ github.ref_name }}
+            SYNC_FOLDER=/opt/sync/${{ github.ref_name }}
+
+            if [ ! -z "$CURRENT_BRANCH" ] && [ "$1" != "deploy-main-frontend" ]; then
+              SERVER_FOLDER=$WWW_FOLDER/divulgatium-frontend-test
+            fi
+
+            mkdir -p $SERVER_FOLDER
+            rm -Rf $SERVER_FOLDER/
+            cp -R $SYNC_FOLDER/ $SERVER_FOLDER/
+            chown -R www-data.www-data $WWW_FOLDER
